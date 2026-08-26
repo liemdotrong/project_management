@@ -5,7 +5,7 @@ export const dynamic = "force-dynamic"; // Bắt buộc render mới mỗi lần
 
 export default async function ProjectPage() {
   // Dùng ID Project thực tế mà user cung cấp
-  const dummyProjectId = "3c7449a46537b47996dfbc3f"; 
+  const dummyProjectId = "3c7449a46537b47996dfbc3f";
   const tasks = await getAllTasks();
 
   // Server Action xử lý form thêm task
@@ -13,12 +13,12 @@ export default async function ProjectPage() {
     "use server";
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
-    
+
     if (!title || title.trim() === "") return;
 
     await createTask(
-      dummyProjectId, 
-      title, 
+      dummyProjectId,
+      title,
       description || ""
     );
   }
@@ -33,17 +33,17 @@ export default async function ProjectPage() {
       <div className="mb-8 bg-white p-5 rounded-xl shadow-sm border border-slate-200">
         <h2 className="text-lg font-semibold mb-4 text-slate-700">Tạo công việc mới</h2>
         <form action={handleCreateTask} className="flex flex-col sm:flex-row gap-4">
-          <input 
-            type="text" 
-            name="title" 
-            placeholder="Tên công việc (Bắt buộc)..." 
-            required 
+          <input
+            type="text"
+            name="title"
+            placeholder="Tên công việc (Bắt buộc)..."
+            required
             className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
-          <input 
-            type="text" 
-            name="description" 
-            placeholder="Mô tả ngắn..." 
+          <input
+            type="text"
+            name="description"
+            placeholder="Mô tả ngắn..."
             className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
           />
           <button type="submit" className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap shadow-sm">
