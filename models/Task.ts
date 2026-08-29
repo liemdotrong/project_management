@@ -3,13 +3,17 @@ import mongoose, { Schema, models } from 'mongoose';
 const TaskSchema = new Schema({
   title: { type: String, required: true },
   description: { type: String },
-  status: { 
+  column_id: { 
     type: String, 
-    enum: ['TODO', 'IN_PROGRESS', 'DONE'], 
+    enum: ['BACKLOG', 'TODO', 'IN_PROGRESS', 'IN_REVIEW', 'DONE'], 
     default: 'TODO' 
   },
   project: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
-  order: { type: Number, default: 0 } // Tùy chọn: dùng để lưu thứ tự khi kéo thả trong cùng 1 cột
+  priority: { type: String, enum: ['LOW', 'MED', 'HIGH', 'URGENT'], default: 'MED' },
+  due_date: { type: Date },
+  position: { type: Number, default: 0 },
+  assignees: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  budget: { type: Number, default: 0, min: 0 }
 }, { timestamps: true });
 
 export default models.Task || mongoose.model('Task', TaskSchema);
