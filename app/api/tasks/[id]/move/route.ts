@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import connectDB from "@/lib/mongo";
 import Task from "@/models/Task";
 import Risk from "@/models/Risk";
+import ActivityLog from "@/models/ActivityLog";
 
 export async function PATCH(
   request: NextRequest,
@@ -49,6 +50,12 @@ export async function PATCH(
     if (!updatedTask) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
+
+    await ActivityLog.create({
+      task_id: id,
+      action: 'UPDATED_TASK',
+      details: { moved_to_column: target_column_id }
+    });
 
     return NextResponse.json(updatedTask);
   } catch (error: any) {

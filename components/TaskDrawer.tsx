@@ -11,7 +11,7 @@ import { getActivityLogsByTask } from "@/actions/activity.actions";
 
 type TabType = 'overview' | 'risks' | 'opportunities' | 'documents' | 'expenses' | 'activity';
 
-export default function TaskDrawer({ task, onClose }: { task: any, onClose: () => void }) {
+export default function TaskDrawer({ task, onClose, permissions }: { task: any, onClose: () => void, permissions?: any }) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   if (!task) return null;
@@ -57,11 +57,11 @@ export default function TaskDrawer({ task, onClose }: { task: any, onClose: () =
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 bg-white">
-          {activeTab === 'overview' && <OverviewTab task={task} />}
-          {activeTab === 'risks' && <RisksTab task={task} />}
-          {activeTab === 'opportunities' && <OpportunitiesTab task={task} />}
-          {activeTab === 'documents' && <DocumentsTab task={task} />}
-          {activeTab === 'expenses' && <ExpensesTab task={task} />}
+          {activeTab === 'overview' && <OverviewTab task={task} permissions={permissions} />}
+          {activeTab === 'risks' && <RisksTab task={task} permissions={permissions} />}
+          {activeTab === 'opportunities' && <OpportunitiesTab task={task} permissions={permissions} />}
+          {activeTab === 'documents' && <DocumentsTab task={task} permissions={permissions} />}
+          {activeTab === 'expenses' && <ExpensesTab task={task} permissions={permissions} />}
           {activeTab === 'activity' && <ActivityLogTab task={task} />}
         </div>
       </div>
@@ -85,7 +85,7 @@ function TabButton({ active, onClick, children, icon }: any) {
   );
 }
 
-function OverviewTab({ task }: { task: any }) {
+function OverviewTab({ task, permissions }: { task: any, permissions?: any }) {
   return (
     <div className="space-y-6">
       <div>
@@ -117,7 +117,7 @@ function OverviewTab({ task }: { task: any }) {
   );
 }
 
-function RisksTab({ task }: { task: any }) {
+function RisksTab({ task, permissions }: { task: any, permissions?: any }) {
   const [risks, setRisks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -150,9 +150,11 @@ function RisksTab({ task }: { task: any }) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Risk Matrix & Register</h3>
+        {(!permissions || permissions.can_update) && (
         <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
           {showForm ? "Cancel" : "+ Add Risk"}
         </button>
+        )}
       </div>
 
       {showForm && (
@@ -212,7 +214,7 @@ function RisksTab({ task }: { task: any }) {
   );
 }
 
-function OpportunitiesTab({ task }: { task: any }) {
+function OpportunitiesTab({ task, permissions }: { task: any, permissions?: any }) {
   const [opps, setOpps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -244,9 +246,11 @@ function OpportunitiesTab({ task }: { task: any }) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Value Optimization</h3>
+        {(!permissions || permissions.can_update) && (
         <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
           {showForm ? "Cancel" : "+ Add Opportunity"}
         </button>
+        )}
       </div>
 
       {showForm && (
@@ -301,10 +305,12 @@ function OpportunitiesTab({ task }: { task: any }) {
   );
 }
 
-function DocumentsTab({ task }: { task: any }) {
+function DocumentsTab({ task, permissions }: { task: any, permissions?: any }) {
   const [docs, setDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+
+  const [file, setFile] = useState<File | null>(null);
 
   useEffect(() => {
     getDocumentsByTask(task._id).then(setDocs);
@@ -312,46 +318,57 @@ function DocumentsTab({ task }: { task: any }) {
 
   const handleUpload = async (e: any) => {
     e.preventDefault();
+    if (!file) return;
     setLoading(true);
-    const fileData = {
-      name: e.target.filename.value,
-      size: Number(e.target.filesize.value),
-      url: "https://example.com/mock-file-url"
+    
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Data = reader.result as string;
+      const fileData = {
+        name: file.name,
+        size: file.size,
+        type: file.type || "application/octet-stream",
+        data: base64Data
+      };
+      
+      try {
+        await uploadDocument(task._id, fileData, "65a1234567890abcdef12345", `/projects/${task.project}`);
+        e.target.reset();
+        setFile(null);
+        setShowForm(false);
+        getDocumentsByTask(task._id).then(setDocs);
+      } catch (err) {
+        alert("Failed to upload document");
+      }
+      setLoading(false);
     };
-    try {
-      await uploadDocument(task._id, fileData, "65a1234567890abcdef12345", `/projects/${task.project}`);
-      e.target.reset();
-      setShowForm(false);
-      getDocumentsByTask(task._id).then(setDocs);
-    } catch (err) {
-      alert("Failed to upload document");
-    }
-    setLoading(false);
+    reader.readAsDataURL(file);
   };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Attachments</h3>
+        {(!permissions || permissions.can_update) && (
         <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
           {showForm ? "Cancel" : "Upload File"}
         </button>
+        )}
       </div>
 
       {showForm && (
         <form onSubmit={handleUpload} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">File Name (Mock)</label>
-              <input name="filename" required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. specs.pdf" />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">File Size (KB)</label>
-              <input name="filesize" required type="number" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="1024" />
-            </div>
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-slate-600 mb-1">Select File (Max 10MB)</label>
+            <input 
+              type="file" 
+              required 
+              onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" 
+            />
           </div>
-          <button disabled={loading} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
-            {loading ? "Uploading..." : "Upload (Mock)"}
+          <button disabled={loading || !file} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
+            {loading ? "Uploading..." : "Upload File"}
           </button>
         </form>
       )}
@@ -382,7 +399,7 @@ function DocumentsTab({ task }: { task: any }) {
   );
 }
 
-function ExpensesTab({ task }: { task: any }) {
+function ExpensesTab({ task, permissions }: { task: any, permissions?: any }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -405,10 +422,48 @@ function ExpensesTab({ task }: { task: any }) {
     setLoading(false);
   };
 
+  const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const budget = task.budget || 0;
+  const isOverBudget = budget > 0 && totalExpenses > budget;
+  const percentage = budget > 0 ? Math.min(100, Math.round((totalExpenses / budget) * 100)) : 0;
+
   return (
     <div>
-      <h3 className="text-sm font-semibold text-slate-700 mb-4">Expense Register</h3>
+      <div className="flex justify-between items-center mb-4">
+        <h3 className="text-sm font-semibold text-slate-700">Expense Register</h3>
+      </div>
       
+      {/* Financial Warning Banner */}
+      {budget > 0 && (
+        <div className={cn(
+          "mb-6 p-4 rounded-xl border",
+          isOverBudget ? "bg-rose-50 border-rose-200 text-rose-800" : "bg-slate-50 border-slate-200 text-slate-700"
+        )}>
+          <div className="flex justify-between items-center mb-2">
+            <div className="flex items-center gap-2">
+              {isOverBudget && <AlertTriangle size={16} className="text-rose-600" />}
+              <span className="font-semibold text-sm">Budget Status</span>
+            </div>
+            <div className="text-sm">
+              <span className={isOverBudget ? "text-rose-600 font-bold" : "font-medium"}>
+                ${totalExpenses.toLocaleString('en-US')}
+              </span>
+              <span className="text-slate-500"> / ${budget.toLocaleString('en-US')}</span>
+            </div>
+          </div>
+          <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mb-1">
+            <div 
+              className={cn("h-2 rounded-full transition-all duration-500", isOverBudget ? "bg-rose-500" : "bg-indigo-500")}
+              style={{ width: `${percentage}%` }}
+            ></div>
+          </div>
+          {isOverBudget && (
+            <p className="text-xs text-rose-600 mt-2 font-medium">Warning: Expenses have exceeded the allocated budget by ${(totalExpenses - budget).toLocaleString('en-US')}.</p>
+          )}
+        </div>
+      )}
+
+      {(!permissions || permissions.can_update) && (
       <form onSubmit={handleAddExpense} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
@@ -424,6 +479,7 @@ function ExpensesTab({ task }: { task: any }) {
           {loading ? "Adding..." : "Add Expense"}
         </button>
       </form>
+      )}
 
       {expenses.length > 0 ? (
         <div className="space-y-2">

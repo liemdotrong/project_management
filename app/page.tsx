@@ -1,15 +1,24 @@
 import { getTasksByProject, createTask } from "@/actions/task.actions";
+import { getPermissionsForPath } from "@/actions/admin.actions";
+import { cookies } from "next/headers";
 import KanbanBoard from "@/components/KanbanBoard";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectPage() {
+  const cookieStore = await cookies();
+  const session = cookieStore.get("pm_session");
+  const currentUser = session ? JSON.parse(session.value) : null;
+  const permissions = currentUser ? await getPermissionsForPath(currentUser.role, '/') : { can_read: false, can_create: false, can_update: false, can_delete: false };
+
   // Use a valid dummy ObjectId format (24 hex characters)
   const dummyProjectId = "65a1234567890abcdef12345";
   const tasks = await getTasksByProject(dummyProjectId);
 
   const handleCreateTask = async (formData: FormData) => {
     "use server";
+    if (!permissions.can_create) return;
+    
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
     const priority = formData.get("priority") as string;
@@ -47,6 +56,7 @@ export default async function ProjectPage() {
       </div>
 
       {/* Form thêm task (Collapsible) */}
+      {permissions.can_create && (
       <details className="mb-6 group bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden shrink-0">
         <summary className="flex items-center justify-between p-4 cursor-pointer list-none font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
           <div className="flex items-center gap-3">
@@ -122,10 +132,11 @@ export default async function ProjectPage() {
         </form>
         </div>
       </details>
+      )}
 
       {/* Truyền dữ liệu xuống Client Component */}
       <div className="flex-1 min-h-0">
-        <KanbanBoard initialTasks={tasks} projectId={dummyProjectId} />
+        <KanbanBoard initialTasks={tasks} projectId={dummyProjectId} permissions={permissions} />
       </div>
     </div>
   );

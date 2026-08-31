@@ -100,6 +100,12 @@ export async function updateTaskDetails(taskId: string, updateData: any, path: s
     await connectDB();
     const updatedTask = await Task.findByIdAndUpdate(taskId, updateData, { new: true });
     
+    await ActivityLog.create({
+      task_id: taskId,
+      action: 'UPDATED_TASK',
+      details: updateData
+    });
+
     revalidatePath(path);
     return JSON.parse(JSON.stringify(updatedTask));
   } catch (error) {
@@ -112,13 +118,23 @@ export async function updateTaskDetails(taskId: string, updateData: any, path: s
 export async function deleteTask(taskId: string, path: string) {
   try {
     await connectDB();
+    
+    const task = await Task.findById(taskId);
+    if (task) {
+      await ActivityLog.create({
+        task_id: taskId,
+        action: 'DELETED_TASK',
+        details: { title: task.title }
+      });
+    }
+
     await Task.findByIdAndDelete(taskId);
     await Promise.all([
       Risk.deleteMany({ task_id: taskId }),
       Opportunity.deleteMany({ task_id: taskId }),
       Expense.deleteMany({ task_id: taskId }),
       Document.deleteMany({ task_id: taskId }),
-      ActivityLog.deleteMany({ task_id: taskId }),
+      // intentionally NOT deleting ActivityLogs so we preserve the history
     ]);
     revalidatePath(path);
   } catch (error) {

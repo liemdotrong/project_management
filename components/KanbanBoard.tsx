@@ -15,7 +15,7 @@ const COLUMNS = [
     { id: "DONE", title: "Done" }
 ];
 
-export default function KanbanBoard({ initialTasks, projectId }: { initialTasks: any[], projectId: string }) {
+export default function KanbanBoard({ initialTasks, projectId, permissions }: { initialTasks: any[], projectId: string, permissions?: any }) {
     const [tasks, setTasks] = useState(initialTasks);
     const [activeTask, setActiveTask] = useState<any | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -31,6 +31,7 @@ export default function KanbanBoard({ initialTasks, projectId }: { initialTasks:
     );
 
     const handleDragStart = (event: DragStartEvent) => {
+        if (permissions && !permissions.can_update) return;
         const { active } = event;
         setActiveTask(tasks.find(t => t._id === active.id));
     };
@@ -118,6 +119,7 @@ export default function KanbanBoard({ initialTasks, projectId }: { initialTasks:
                                         key={task._id} 
                                         task={task} 
                                         onClick={() => setSelectedTask(task)} 
+                                        permissions={permissions}
                                     />
                                 ))}
                             </BoardColumn>
@@ -125,14 +127,14 @@ export default function KanbanBoard({ initialTasks, projectId }: { initialTasks:
                     })}
                 </div>
                 <DragOverlay>
-                    {activeTask ? <TaskCard task={activeTask} /> : null}
+                    {activeTask ? <TaskCard task={activeTask} permissions={permissions} /> : null}
                 </DragOverlay>
             </DndContext>
 
-            {/* Task Drawer */}
             <TaskDrawer 
                 task={selectedTask} 
                 onClose={() => setSelectedTask(null)} 
+                permissions={permissions}
             />
         </div>
     );

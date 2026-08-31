@@ -5,10 +5,11 @@ import { CSS } from "@dnd-kit/utilities";
 import { AlertCircle, ArrowUpRight, Paperclip, ChevronsUp, ChevronUp, Minus, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export default function TaskCard({ task, onClick }: { task: any, onClick?: () => void }) {
+export default function TaskCard({ task, onClick, permissions }: { task: any, onClick?: () => void, permissions?: any }) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task._id,
-    data: { currentStatus: task.column_id }
+    data: { currentStatus: task.column_id },
+    disabled: permissions && !permissions.can_update
   });
 
   const style = {
