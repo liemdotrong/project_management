@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from "@/lib/mongo";
 import Document from "@/models/Document";
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { id } = await params;
