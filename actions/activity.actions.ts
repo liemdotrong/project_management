@@ -18,6 +18,23 @@ export async function createActivityLog(taskId: string, userId: string, action: 
   }
 }
 
+import { cookies } from "next/headers";
+
+export async function logActivityWithSession(taskId: string, action: string, details?: any) {
+  try {
+    const cookieStore = await cookies();
+    const session = cookieStore.get("pm_session");
+    const currentUser = session ? JSON.parse(session.value) : null;
+    const userId = currentUser?._id;
+
+    if (userId) {
+      await createActivityLog(taskId, userId, action, details);
+    }
+  } catch (err) {
+    console.error("Error reading session for activity log:", err);
+  }
+}
+
 export async function getActivityLogsByTask(taskId: string) {
   try {
     await connectDB();

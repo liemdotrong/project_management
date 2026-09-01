@@ -7,7 +7,7 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      
+
       {/* Decorative background blobs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-indigo-500/20 blur-[100px]" />
@@ -37,40 +37,33 @@ export default async function LoginPage(props: { searchParams: Promise<{ error?:
         <form action={login} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-            <input 
-              type="email" 
+            <input
+              type="email"
               name="email"
-              defaultValue="liem@hutech.com"
-              required 
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all outline-none" 
-              placeholder="you@example.com" 
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <input 
-              type="password" 
-              name="password"
-              defaultValue="123"
-              required 
-              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all outline-none" 
-              placeholder="••••••••" 
+              required
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
+              placeholder="you@example.com"
             />
           </div>
 
-          <button 
-            type="submit" 
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <input
+              type="password"
+              name="password"
+              required
+              className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:bg-white focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 transition-all outline-none"
+              placeholder="••••••••"
+            />
+          </div>
+
+          <button
+            type="submit"
             className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md shadow-indigo-200 transition-all transform hover:scale-[1.02] active:scale-95"
           >
             Sign In
           </button>
         </form>
-
-        <div className="mt-6 text-center text-xs text-slate-400 bg-slate-50 p-3 rounded-lg">
-          Demo Credentials:<br/>
-          <b>liem@hutech.com</b> / <b>123</b>
-        </div>
       </div>
     </div>
   );

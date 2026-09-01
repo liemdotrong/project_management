@@ -3,6 +3,7 @@ import connectDB from "@/lib/mongo";
 import Task from "@/models/Task";
 import Risk from "@/models/Risk";
 import ActivityLog from "@/models/ActivityLog";
+import { logActivityWithSession } from "@/actions/activity.actions";
 
 export async function PATCH(
   request: NextRequest,
@@ -51,11 +52,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    await ActivityLog.create({
-      task_id: id,
-      action: 'UPDATED_TASK',
-      details: { moved_to_column: target_column_id }
-    });
+    await logActivityWithSession(id, 'MOVED_TASK', { moved_to_column: target_column_id });
 
     return NextResponse.json(updatedTask);
   } catch (error: any) {

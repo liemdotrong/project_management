@@ -1,9 +1,26 @@
 import { getUsers } from "@/actions/user.actions";
 import AdminClient from "./AdminClient";
+import { cookies } from "next/headers";
+import { canAccessAdmin } from "@/lib/permissions";
+import { ShieldAlert } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminPage() {
+  const cookieStore = await cookies();
+  const session = cookieStore.get("pm_session");
+  const currentUser = session ? JSON.parse(session.value) : null;
+  
+  if (!currentUser || !canAccessAdmin(currentUser.role)) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-slate-500">
+        <ShieldAlert size={48} className="text-rose-400 mb-4" />
+        <h2 className="text-xl font-bold text-slate-700">Access Denied</h2>
+        <p>You do not have permission to view the System Administration screen.</p>
+      </div>
+    );
+  }
+
   const users = await getUsers();
   
   return (

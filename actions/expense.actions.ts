@@ -5,6 +5,7 @@ import Expense from "@/models/Expense";
 import Task from "@/models/Task";
 import Risk from "@/models/Risk";
 import { revalidatePath } from "next/cache";
+import { logActivityWithSession } from "@/actions/activity.actions";
 
 export async function createExpense(taskId: string, category: string, amount: number, path: string) {
   try {
@@ -40,8 +41,11 @@ export async function createExpense(taskId: string, category: string, amount: nu
           mitigation_plan: "Review and request additional budget or cut costs immediately.",
           status: 'OPEN'
         });
+        await logActivityWithSession(taskId, 'CREATED_RISK', { title: "Budget Overrun (Auto)" });
       }
     }
+
+    await logActivityWithSession(taskId, 'CREATED_EXPENSE', { category, amount });
 
     revalidatePath(path);
     return JSON.parse(JSON.stringify(newExpense));
@@ -59,5 +63,39 @@ export async function getExpensesByTask(taskId: string) {
   } catch (error) {
     console.error("Lỗi lấy expenses:", error);
     return [];
+  }
+}
+
+export async function updateExpense(expenseId: string, category: string, amount: number, path: string) {
+  try {
+    await connectDB();
+    const updated = await Expense.findByIdAndUpdate(
+      expenseId, 
+      { category, amount }, 
+      { new: true }
+    );
+    if (updated) {
+      await logActivityWithSession(updated.task_id.toString(), 'UPDATED_EXPENSE', { category, amount });
+    }
+    revalidatePath(path);
+    return JSON.parse(JSON.stringify(updated));
+  } catch (error) {
+    console.error("Lỗi update expense:", error);
+    throw new Error("Không thể update expense");
+  }
+}
+
+export async function deleteExpense(expenseId: string, path: string) {
+  try {
+    await connectDB();
+    const deleted = await Expense.findByIdAndDelete(expenseId);
+    if (deleted) {
+      await logActivityWithSession(deleted.task_id.toString(), 'DELETED_EXPENSE', { category: deleted.category });
+    }
+    revalidatePath(path);
+    return true;
+  } catch (error) {
+    console.error("Lỗi xóa expense:", error);
+    throw new Error("Không thể xóa expense");
   }
 }

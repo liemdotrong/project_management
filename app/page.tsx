@@ -1,7 +1,7 @@
 import { getTasksByProject, createTask } from "@/actions/task.actions";
-import { getPermissionsForPath } from "@/actions/admin.actions";
 import { cookies } from "next/headers";
 import KanbanBoard from "@/components/KanbanBoard";
+import { getTaskPermissions, getSubTabPermissions } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -9,7 +9,8 @@ export default async function ProjectPage() {
   const cookieStore = await cookies();
   const session = cookieStore.get("pm_session");
   const currentUser = session ? JSON.parse(session.value) : null;
-  const permissions = currentUser ? await getPermissionsForPath(currentUser.role, '/') : { can_read: false, can_create: false, can_update: false, can_delete: false };
+  const permissions = currentUser ? getTaskPermissions(currentUser.role) : { can_read: false, can_create: false, can_update: false, can_delete: false, can_move: false };
+  const subTabPermissions = currentUser ? getSubTabPermissions(currentUser.role) : { can_read: false, can_create: false, can_update: false, can_delete: false };
 
   // Use a valid dummy ObjectId format (24 hex characters)
   const dummyProjectId = "65a1234567890abcdef12345";
@@ -42,17 +43,6 @@ export default async function ProjectPage() {
     <div className="p-8 flex flex-col h-full">
       <div className="flex justify-between items-center mb-6 shrink-0">
         <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Active Sprint</h1>
-        <div className="flex gap-2">
-          <div className="flex -space-x-2 mr-4">
-            {/* Mock Project Members */}
-            <div className="w-8 h-8 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-xs font-bold text-indigo-700 z-30">A</div>
-            <div className="w-8 h-8 rounded-full bg-emerald-100 border-2 border-white flex items-center justify-center text-xs font-bold text-emerald-700 z-20">B</div>
-            <div className="w-8 h-8 rounded-full bg-rose-100 border-2 border-white flex items-center justify-center text-xs font-bold text-rose-700 z-10">C</div>
-          </div>
-          <button className="px-3 py-1.5 bg-white border border-slate-200 text-slate-600 font-medium rounded-lg hover:bg-slate-50 transition-colors text-sm shadow-sm">
-            Share
-          </button>
-        </div>
       </div>
 
       {/* Form thêm task (Collapsible) */}
@@ -136,7 +126,7 @@ export default async function ProjectPage() {
 
       {/* Truyền dữ liệu xuống Client Component */}
       <div className="flex-1 min-h-0">
-        <KanbanBoard initialTasks={tasks} projectId={dummyProjectId} permissions={permissions} />
+        <KanbanBoard initialTasks={tasks} projectId={dummyProjectId} permissions={permissions} subTabPermissions={subTabPermissions} />
       </div>
     </div>
   );

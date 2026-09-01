@@ -9,7 +9,7 @@ export default function TaskCard({ task, onClick, permissions }: { task: any, on
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task._id,
     data: { currentStatus: task.column_id },
-    disabled: permissions && !permissions.can_update
+    disabled: permissions && !permissions.can_move
   });
 
   const style = {

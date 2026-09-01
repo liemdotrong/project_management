@@ -1,17 +1,17 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Activity, AlertTriangle, ArrowUpRight, FileText, DollarSign, LayoutList } from "lucide-react";
+import { X, Activity, AlertTriangle, ArrowUpRight, FileText, DollarSign, LayoutList, Trash2, Edit2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createExpense, getExpensesByTask } from "@/actions/expense.actions";
-import { createRisk, getRisksByTask } from "@/actions/risk.actions";
-import { createOpportunity, getOpportunitiesByTask } from "@/actions/opportunity.actions";
-import { uploadDocument, getDocumentsByTask } from "@/actions/document.actions";
+import { createExpense, getExpensesByTask, updateExpense, deleteExpense } from "@/actions/expense.actions";
+import { createRisk, getRisksByTask, updateRisk, deleteRisk } from "@/actions/risk.actions";
+import { createOpportunity, getOpportunitiesByTask, updateOpportunity, deleteOpportunity } from "@/actions/opportunity.actions";
+import { uploadDocument, getDocumentsByTask, deleteDocument } from "@/actions/document.actions";
 import { getActivityLogsByTask } from "@/actions/activity.actions";
 
 type TabType = 'overview' | 'risks' | 'opportunities' | 'documents' | 'expenses' | 'activity';
 
-export default function TaskDrawer({ task, onClose, permissions }: { task: any, onClose: () => void, permissions?: any }) {
+export default function TaskDrawer({ task, onClose, permissions, subTabPermissions }: { task: any, onClose: () => void, permissions?: any, subTabPermissions?: any }) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
 
   if (!task) return null;
@@ -58,10 +58,10 @@ export default function TaskDrawer({ task, onClose, permissions }: { task: any, 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 bg-white">
           {activeTab === 'overview' && <OverviewTab task={task} permissions={permissions} />}
-          {activeTab === 'risks' && <RisksTab task={task} permissions={permissions} />}
-          {activeTab === 'opportunities' && <OpportunitiesTab task={task} permissions={permissions} />}
-          {activeTab === 'documents' && <DocumentsTab task={task} permissions={permissions} />}
-          {activeTab === 'expenses' && <ExpensesTab task={task} permissions={permissions} />}
+          {activeTab === 'risks' && <RisksTab task={task} subTabPermissions={subTabPermissions} />}
+          {activeTab === 'opportunities' && <OpportunitiesTab task={task} subTabPermissions={subTabPermissions} />}
+          {activeTab === 'documents' && <DocumentsTab task={task} subTabPermissions={subTabPermissions} />}
+          {activeTab === 'expenses' && <ExpensesTab task={task} subTabPermissions={subTabPermissions} />}
           {activeTab === 'activity' && <ActivityLogTab task={task} />}
         </div>
       </div>
@@ -117,16 +117,16 @@ function OverviewTab({ task, permissions }: { task: any, permissions?: any }) {
   );
 }
 
-function RisksTab({ task, permissions }: { task: any, permissions?: any }) {
+function RisksTab({ task, subTabPermissions }: { task: any, subTabPermissions?: any }) {
   const [risks, setRisks] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [editingRisk, setEditingRisk] = useState<any | null>(null);
 
   useEffect(() => {
     getRisksByTask(task._id).then(setRisks);
   }, [task._id]);
 
-  const handleAddRisk = async (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
     const data = {
@@ -134,51 +134,80 @@ function RisksTab({ task, permissions }: { task: any, permissions?: any }) {
       severity: Number(e.target.severity.value),
       probability: Number(e.target.probability.value),
       mitigation_plan: e.target.mitigation_plan.value,
+      status: e.target.status ? e.target.status.value : 'OPEN',
     };
     try {
-      await createRisk(task._id, data, `/projects/${task.project}`);
+      if (editingRisk && editingRisk._id) {
+        await updateRisk(editingRisk._id, data, `/projects/${task.project}`);
+        setEditingRisk(null);
+      } else {
+        await createRisk(task._id, data, `/projects/${task.project}`);
+      }
       e.target.reset();
-      setShowForm(false);
       getRisksByTask(task._id).then(setRisks);
     } catch (err) {
-      alert("Failed to add risk");
+      alert(editingRisk ? "Failed to update risk" : "Failed to add risk");
     }
     setLoading(false);
+  };
+
+  const handleDelete = async (riskId: string) => {
+    if (!window.confirm("Are you sure you want to delete this risk?")) return;
+    try {
+      await deleteRisk(riskId, `/projects/${task.project}`);
+      getRisksByTask(task._id).then(setRisks);
+    } catch (error) {
+      alert("Failed to delete risk");
+    }
   };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Risk Matrix & Register</h3>
-        {(!permissions || permissions.can_update) && (
-        <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-          {showForm ? "Cancel" : "+ Add Risk"}
+        {(subTabPermissions?.can_create && !editingRisk) && (
+        <button onClick={() => setEditingRisk({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+          + Add Risk
         </button>
         )}
       </div>
 
-      {showForm && (
-        <form onSubmit={handleAddRisk} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+      {editingRisk && (
+        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-sm font-semibold text-slate-700">{editingRisk._id ? "Edit Risk" : "New Risk"}</h4>
+            <button type="button" onClick={() => setEditingRisk(null)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="col-span-2">
+            <div className={editingRisk._id ? "col-span-1" : "col-span-2"}>
               <label className="block text-xs font-medium text-slate-600 mb-1">Risk Title</label>
-              <input name="title" required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. API limit reached" />
+              <input name="title" defaultValue={editingRisk.title} required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. API limit reached" />
             </div>
+            {editingRisk._id && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+              <select name="status" defaultValue={editingRisk.status || 'OPEN'} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                <option value="OPEN">OPEN</option>
+                <option value="MITIGATED">MITIGATED</option>
+                <option value="CLOSED">CLOSED</option>
+              </select>
+            </div>
+            )}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Severity (1-5)</label>
-              <input name="severity" required type="number" min="1" max="5" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" defaultValue="3" />
+              <input name="severity" defaultValue={editingRisk.severity || 3} required type="number" min="1" max="5" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Probability (1-5)</label>
-              <input name="probability" required type="number" min="1" max="5" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" defaultValue="3" />
+              <input name="probability" defaultValue={editingRisk.probability || 3} required type="number" min="1" max="5" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-slate-600 mb-1">Mitigation Plan</label>
-              <textarea name="mitigation_plan" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Plan to mitigate..." rows={2}></textarea>
+              <textarea name="mitigation_plan" defaultValue={editingRisk.mitigation_plan} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="Plan to mitigate..." rows={2}></textarea>
             </div>
           </div>
           <button disabled={loading} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
-            {loading ? "Adding..." : "Add Risk"}
+            {loading ? "Saving..." : "Save Risk"}
           </button>
         </form>
       )}
@@ -186,13 +215,28 @@ function RisksTab({ task, permissions }: { task: any, permissions?: any }) {
       {risks.length > 0 ? (
         <div className="space-y-3">
           {risks.map(r => (
-            <div key={r._id} className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm flex flex-col gap-2">
+            <div key={r._id} className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm flex flex-col gap-2 group">
               <div className="flex justify-between items-start">
                 <h4 className="font-semibold text-sm text-slate-800">{r.title}</h4>
-                <span className={cn(
-                  "px-2 py-0.5 text-[10px] font-bold rounded-full",
-                  r.status === 'OPEN' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
-                )}>{r.status}</span>
+                <div className="flex items-center gap-3">
+                  <span className={cn(
+                    "px-2 py-0.5 text-[10px] font-bold rounded-full",
+                    r.status === 'OPEN' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
+                  )}>{r.status}</span>
+                  
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all -my-1 -mr-1">
+                    {(subTabPermissions?.can_update) && (
+                      <button onClick={() => setEditingRisk(r)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
+                        <Edit2 size={14} />
+                      </button>
+                    )}
+                    {(subTabPermissions?.can_delete) && (
+                      <button onClick={() => handleDelete(r._id)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="flex gap-4 text-xs text-slate-500">
                 <span>Severity: <b>{r.severity}</b></span>
@@ -214,63 +258,92 @@ function RisksTab({ task, permissions }: { task: any, permissions?: any }) {
   );
 }
 
-function OpportunitiesTab({ task, permissions }: { task: any, permissions?: any }) {
+function OpportunitiesTab({ task, subTabPermissions }: { task: any, subTabPermissions?: any }) {
   const [opps, setOpps] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [editingOpp, setEditingOpp] = useState<any | null>(null);
 
   useEffect(() => {
     getOpportunitiesByTask(task._id).then(setOpps);
   }, [task._id]);
 
-  const handleAddOpp = async (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
     const data = {
       title: e.target.title.value,
       impact_value: Number(e.target.impact_value.value),
       action_plan: e.target.action_plan.value,
+      status: e.target.status ? e.target.status.value : 'IDENTIFIED',
     };
     try {
-      await createOpportunity(task._id, data, `/projects/${task.project}`);
+      if (editingOpp && editingOpp._id) {
+        await updateOpportunity(editingOpp._id, data, `/projects/${task.project}`);
+        setEditingOpp(null);
+      } else {
+        await createOpportunity(task._id, data, `/projects/${task.project}`);
+      }
       e.target.reset();
-      setShowForm(false);
       getOpportunitiesByTask(task._id).then(setOpps);
     } catch (err) {
-      alert("Failed to add opportunity");
+      alert(editingOpp ? "Failed to update opportunity" : "Failed to add opportunity");
     }
     setLoading(false);
+  };
+
+  const handleDelete = async (oppId: string) => {
+    if (!window.confirm("Are you sure you want to delete this opportunity?")) return;
+    try {
+      await deleteOpportunity(oppId, `/projects/${task.project}`);
+      getOpportunitiesByTask(task._id).then(setOpps);
+    } catch (error) {
+      alert("Failed to delete opportunity");
+    }
   };
 
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Value Optimization</h3>
-        {(!permissions || permissions.can_update) && (
-        <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-          {showForm ? "Cancel" : "+ Add Opportunity"}
+        {(subTabPermissions?.can_create && !editingOpp) && (
+        <button onClick={() => setEditingOpp({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+          + Add Opportunity
         </button>
         )}
       </div>
 
-      {showForm && (
-        <form onSubmit={handleAddOpp} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+      {editingOpp && (
+        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-sm font-semibold text-slate-700">{editingOpp._id ? "Edit Opportunity" : "New Opportunity"}</h4>
+            <button type="button" onClick={() => setEditingOpp(null)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+          </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
-            <div className="col-span-2">
+            <div className={editingOpp._id ? "col-span-1" : "col-span-2"}>
               <label className="block text-xs font-medium text-slate-600 mb-1">Opportunity Title</label>
-              <input name="title" required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Upsell Pro plan" />
+              <input name="title" defaultValue={editingOpp.title} required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Upsell Pro plan" />
             </div>
+            {editingOpp._id && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+              <select name="status" defaultValue={editingOpp.status || 'IDENTIFIED'} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                <option value="IDENTIFIED">IDENTIFIED</option>
+                <option value="IN_PROGRESS">IN_PROGRESS</option>
+                <option value="REALIZED">REALIZED</option>
+              </select>
+            </div>
+            )}
             <div className="col-span-2">
               <label className="block text-xs font-medium text-slate-600 mb-1">Impact Value ($)</label>
-              <input name="impact_value" required type="number" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="0" />
+              <input name="impact_value" defaultValue={editingOpp.impact_value} required type="number" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="0" />
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-medium text-slate-600 mb-1">Action Plan</label>
-              <textarea name="action_plan" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" rows={2}></textarea>
+              <textarea name="action_plan" defaultValue={editingOpp.action_plan} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" rows={2}></textarea>
             </div>
           </div>
           <button disabled={loading} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
-            {loading ? "Adding..." : "Add Opportunity"}
+            {loading ? "Saving..." : "Save Opportunity"}
           </button>
         </form>
       )}
@@ -278,14 +351,29 @@ function OpportunitiesTab({ task, permissions }: { task: any, permissions?: any 
       {opps.length > 0 ? (
         <div className="space-y-3">
           {opps.map(o => (
-            <div key={o._id} className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm flex flex-col gap-2">
+            <div key={o._id} className="p-4 bg-white border border-slate-100 rounded-xl shadow-sm flex flex-col gap-2 group">
               <div className="flex justify-between items-start">
                 <h4 className="font-semibold text-sm text-slate-800">{o.title}</h4>
-                <span className={cn(
-                  "px-2 py-0.5 text-[10px] font-bold rounded-full",
-                  o.status === 'IDENTIFIED' ? "bg-slate-100 text-slate-700" :
-                  o.status === 'IN_PROGRESS' ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
-                )}>{o.status}</span>
+                <div className="flex items-center gap-3">
+                  <span className={cn(
+                    "px-2 py-0.5 text-[10px] font-bold rounded-full",
+                    o.status === 'IDENTIFIED' ? "bg-slate-100 text-slate-700" :
+                    o.status === 'IN_PROGRESS' ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
+                  )}>{o.status}</span>
+
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all -my-1 -mr-1">
+                    {(subTabPermissions?.can_update) && (
+                      <button onClick={() => setEditingOpp(o)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
+                        <Edit2 size={14} />
+                      </button>
+                    )}
+                    {(subTabPermissions?.can_delete) && (
+                      <button onClick={() => handleDelete(o._id)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
               <div className="flex gap-4 text-xs text-slate-500">
                 <span>Value: <b className="text-indigo-600">${o.impact_value?.toLocaleString('en-US')}</b></span>
@@ -305,7 +393,7 @@ function OpportunitiesTab({ task, permissions }: { task: any, permissions?: any 
   );
 }
 
-function DocumentsTab({ task, permissions }: { task: any, permissions?: any }) {
+function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermissions?: any }) {
   const [docs, setDocs] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -345,11 +433,21 @@ function DocumentsTab({ task, permissions }: { task: any, permissions?: any }) {
     reader.readAsDataURL(file);
   };
 
+  const handleDelete = async (docId: string) => {
+    if (!window.confirm("Are you sure you want to delete this document?")) return;
+    try {
+      await deleteDocument(docId, `/projects/${task.project}`);
+      getDocumentsByTask(task._id).then(setDocs);
+    } catch (error) {
+      alert("Failed to delete document");
+    }
+  };
+
   return (
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Attachments</h3>
-        {(!permissions || permissions.can_update) && (
+        {(subTabPermissions?.can_create) && (
         <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
           {showForm ? "Cancel" : "Upload File"}
         </button>
@@ -376,17 +474,28 @@ function DocumentsTab({ task, permissions }: { task: any, permissions?: any }) {
       {docs.length > 0 ? (
         <div className="space-y-2">
           {docs.map(d => (
-            <div key={d._id} className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm flex justify-between items-center">
+            <div key={d._id} className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm flex justify-between items-center group">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-md bg-indigo-50 flex items-center justify-center text-indigo-500">
                   <FileText size={16} />
                 </div>
                 <div>
                   <h4 className="text-sm font-medium text-slate-700">{d.file_name}</h4>
-                  <p className="text-xs text-slate-400">{(d.file_size / 1024).toFixed(2)} MB • {new Date(d.createdAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-slate-400">
+                    {d.file_size < 1024 * 1024 
+                      ? `${(d.file_size / 1024).toFixed(2)} KB` 
+                      : `${(d.file_size / (1024 * 1024)).toFixed(2)} MB`} • {new Date(d.createdAt).toLocaleDateString()}
+                  </p>
                 </div>
               </div>
-              <a href={d.file_url} target="_blank" className="text-indigo-600 text-xs font-medium hover:underline">View</a>
+              <div className="flex items-center gap-2">
+                <a href={d.file_url} target="_blank" className="text-indigo-600 text-xs font-medium hover:underline px-2">View</a>
+                {(subTabPermissions?.can_delete) && (
+                  <button onClick={() => handleDelete(d._id)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded opacity-0 group-hover:opacity-100 transition-all">
+                    <Trash2 size={14} />
+                  </button>
+                )}
+              </div>
             </div>
           ))}
         </div>
@@ -399,27 +508,43 @@ function DocumentsTab({ task, permissions }: { task: any, permissions?: any }) {
   );
 }
 
-function ExpensesTab({ task, permissions }: { task: any, permissions?: any }) {
+function ExpensesTab({ task, subTabPermissions }: { task: any, subTabPermissions?: any }) {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [editingExp, setEditingExp] = useState<any | null>(null);
 
   useEffect(() => {
     getExpensesByTask(task._id).then(setExpenses);
   }, [task._id]);
 
-  const handleAddExpense = async (e: any) => {
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
     setLoading(true);
     const amount = Number(e.target.amount.value);
     const category = e.target.category.value;
     try {
-      await createExpense(task._id, category, amount, `/projects/${task.project}`);
+      if (editingExp && editingExp._id) {
+        await updateExpense(editingExp._id, category, amount, `/projects/${task.project}`);
+        setEditingExp(null);
+      } else {
+        await createExpense(task._id, category, amount, `/projects/${task.project}`);
+      }
       e.target.reset();
       getExpensesByTask(task._id).then(setExpenses);
     } catch (err) {
-      alert("Failed to add expense");
+      alert(editingExp ? "Failed to update expense" : "Failed to add expense");
     }
     setLoading(false);
+  };
+
+  const handleDelete = async (expId: string) => {
+    if (!window.confirm("Are you sure you want to delete this expense?")) return;
+    try {
+      await deleteExpense(expId, `/projects/${task.project}`);
+      getExpensesByTask(task._id).then(setExpenses);
+    } catch (error) {
+      alert("Failed to delete expense");
+    }
   };
 
   const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -431,6 +556,11 @@ function ExpensesTab({ task, permissions }: { task: any, permissions?: any }) {
     <div>
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Expense Register</h3>
+        {(subTabPermissions?.can_create && !editingExp) && (
+        <button onClick={() => setEditingExp({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+          + Add Expense
+        </button>
+        )}
       </div>
       
       {/* Financial Warning Banner */}
@@ -463,20 +593,24 @@ function ExpensesTab({ task, permissions }: { task: any, permissions?: any }) {
         </div>
       )}
 
-      {(!permissions || permissions.can_update) && (
-      <form onSubmit={handleAddExpense} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+      {editingExp && (
+      <form onSubmit={handleSubmit} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+        <div className="flex justify-between items-center mb-3">
+          <h4 className="text-sm font-semibold text-slate-700">{editingExp._id ? "Edit Expense" : "New Expense"}</h4>
+          <button type="button" onClick={() => setEditingExp(null)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+        </div>
         <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
-            <input name="category" required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Software License" />
+            <input name="category" defaultValue={editingExp.category} required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Software License" />
           </div>
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Amount ($)</label>
-            <input name="amount" required type="number" step="0.01" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="0.00" />
+            <input name="amount" defaultValue={editingExp.amount} required type="number" step="0.01" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="0.00" />
           </div>
         </div>
         <button disabled={loading} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
-          {loading ? "Adding..." : "Add Expense"}
+          {loading ? "Saving..." : "Save Expense"}
         </button>
       </form>
       )}
@@ -484,13 +618,27 @@ function ExpensesTab({ task, permissions }: { task: any, permissions?: any }) {
       {expenses.length > 0 ? (
         <div className="space-y-2">
           {expenses.map(exp => (
-            <div key={exp._id} className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm flex justify-between items-center">
+            <div key={exp._id} className="p-3 bg-white border border-slate-100 rounded-lg shadow-sm flex justify-between items-center group">
               <div>
                 <h4 className="text-sm font-medium text-slate-700">{exp.category}</h4>
                 <p className="text-xs text-slate-400">{new Date(exp.spent_at).toLocaleString()}</p>
               </div>
-              <div className="font-semibold text-slate-800">
-                ${exp.amount.toLocaleString('en-US')}
+              <div className="flex items-center gap-4">
+                <div className="font-semibold text-slate-800">
+                  ${exp.amount.toLocaleString('en-US')}
+                </div>
+                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                  {(subTabPermissions?.can_update) && (
+                    <button onClick={() => setEditingExp(exp)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
+                      <Edit2 size={14} />
+                    </button>
+                  )}
+                  {(subTabPermissions?.can_delete) && (
+                    <button onClick={() => handleDelete(exp._id)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded">
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

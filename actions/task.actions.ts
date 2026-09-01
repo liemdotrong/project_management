@@ -7,6 +7,7 @@ import Opportunity from "@/models/Opportunity";
 import Document from "@/models/Document";
 import Expense from "@/models/Expense";
 import ActivityLog from "@/models/ActivityLog";
+import { logActivityWithSession } from "@/actions/activity.actions";
 import { revalidatePath } from "next/cache";
 
 // 1. CREATE
@@ -31,12 +32,7 @@ export async function createTask(
       budget,
     });
     
-    await ActivityLog.create({
-      task_id: newTask._id,
-      user_id: newTask.assignees?.[0] || null, // Mock user for now if no assignees
-      action: 'CREATED_TASK',
-      details: { title }
-    });
+    await logActivityWithSession(newTask._id, 'CREATED_TASK', { title });
 
     revalidatePath("/"); 
     revalidatePath(`/projects/${projectId}`);
@@ -100,11 +96,7 @@ export async function updateTaskDetails(taskId: string, updateData: any, path: s
     await connectDB();
     const updatedTask = await Task.findByIdAndUpdate(taskId, updateData, { new: true });
     
-    await ActivityLog.create({
-      task_id: taskId,
-      action: 'UPDATED_TASK',
-      details: updateData
-    });
+    await logActivityWithSession(taskId, 'UPDATED_TASK', updateData);
 
     revalidatePath(path);
     return JSON.parse(JSON.stringify(updatedTask));
@@ -121,11 +113,7 @@ export async function deleteTask(taskId: string, path: string) {
     
     const task = await Task.findById(taskId);
     if (task) {
-      await ActivityLog.create({
-        task_id: taskId,
-        action: 'DELETED_TASK',
-        details: { title: task.title }
-      });
+      await logActivityWithSession(taskId, 'DELETED_TASK', { title: task.title });
     }
 
     await Task.findByIdAndDelete(taskId);

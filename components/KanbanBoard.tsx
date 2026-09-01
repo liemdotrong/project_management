@@ -15,7 +15,7 @@ const COLUMNS = [
     { id: "DONE", title: "Done" }
 ];
 
-export default function KanbanBoard({ initialTasks, projectId, permissions }: { initialTasks: any[], projectId: string, permissions?: any }) {
+export default function KanbanBoard({ initialTasks, projectId, permissions, subTabPermissions }: { initialTasks: any[], projectId: string, permissions?: any, subTabPermissions?: any }) {
     const [tasks, setTasks] = useState(initialTasks);
     const [activeTask, setActiveTask] = useState<any | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -31,7 +31,7 @@ export default function KanbanBoard({ initialTasks, projectId, permissions }: { 
     );
 
     const handleDragStart = (event: DragStartEvent) => {
-        if (permissions && !permissions.can_update) return;
+        if (permissions && !permissions.can_move) return;
         const { active } = event;
         setActiveTask(tasks.find(t => t._id === active.id));
     };
@@ -135,6 +135,7 @@ export default function KanbanBoard({ initialTasks, projectId, permissions }: { 
                 task={selectedTask} 
                 onClose={() => setSelectedTask(null)} 
                 permissions={permissions}
+                subTabPermissions={subTabPermissions}
             />
         </div>
     );

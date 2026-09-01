@@ -6,7 +6,10 @@ const RiskSchema = new Schema({
   severity: { type: Number, required: true, min: 1, max: 5 },
   probability: { type: Number, required: true, min: 1, max: 5 },
   mitigation_plan: { type: String },
-  status: { type: String, enum: ['OPEN', 'MITIGATED'], default: 'OPEN' }
-}, { timestamps: true });
+  status: { type: String, enum: ['OPEN', 'MITIGATED'], default: 'OPEN' },
+  demo: { type: String, default: "demo" },
+  demo1: { type: String, default: "demo1" },
+  demo2: { type: String, default: "demo2" }
+}, { timestamps: true, strict: false });
 
 export default models.Risk || mongoose.model('Risk', RiskSchema);
