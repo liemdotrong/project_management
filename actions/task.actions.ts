@@ -47,8 +47,8 @@ export async function createTask(
 export async function getTasksByProject(projectId: string) {
   try {
     await connectDB();
-    // Fetch raw tasks
-    const tasks = await Task.find({ project: projectId }).sort({ position: 1, createdAt: -1 }).lean();
+    // Fetch raw non-deleted tasks
+    const tasks = await Task.find({ project: projectId, isDeleted: { $ne: 1 } }).sort({ position: 1, createdAt: -1 }).lean();
     
     // Manual Rollup (simpler than complex aggregation for now)
     const taskIds = tasks.map(t => t._id);
@@ -77,6 +77,9 @@ export async function getTasksByProject(projectId: string) {
           totalOppValue,
           totalExpenses,
           documentCount: taskDocs.length,
+          riskCount: taskRisks.length,
+          opportunityCount: taskOpps.length,
+          expenseCount: taskExps.length,
           hasOpenHighRisk: taskRisks.some(r => r.status === 'OPEN' && r.severity >= 4)
         }
       };
@@ -116,17 +119,35 @@ export async function deleteTask(taskId: string, path: string) {
       await logActivityWithSession(taskId, 'DELETED_TASK', { title: task.title });
     }
 
-    await Task.findByIdAndDelete(taskId);
-    await Promise.all([
-      Risk.deleteMany({ task_id: taskId }),
-      Opportunity.deleteMany({ task_id: taskId }),
-      Expense.deleteMany({ task_id: taskId }),
-      Document.deleteMany({ task_id: taskId }),
-      // intentionally NOT deleting ActivityLogs so we preserve the history
-    ]);
+    // Soft delete
+    await Task.findByIdAndUpdate(taskId, { isDeleted: 1 });
+    // Keep associated Risks, Opportunities, Expenses for history as per soft delete behavior
+
     revalidatePath(path);
   } catch (error) {
     console.error("Lỗi xóa task:", error);
     throw new Error("Không thể xóa task");
+  }
+}
+
+// 5. ASSIGN
+export async function assignTask(taskId: string, userId: string, path: string) {
+  try {
+    await connectDB();
+    
+    const task = await Task.findById(taskId);
+    if (!task) throw new Error("Task not found");
+
+    if (!task.assignees.includes(userId)) {
+      task.assignees.push(userId);
+      await task.save();
+      await logActivityWithSession(taskId, 'ASSIGNED_TASK', { userId });
+    }
+
+    revalidatePath(path);
+    return true;
+  } catch (error) {
+    console.error("Lỗi assign task:", error);
+    throw new Error("Không thể assign task");
   }
 }

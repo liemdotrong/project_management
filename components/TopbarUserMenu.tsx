@@ -26,10 +26,7 @@ export default function TopbarUserMenu({ user }: { user: any }) {
               <p className="text-[10px] font-bold text-indigo-500 mt-1 uppercase tracking-wider">{user?.role}</p>
             </div>
             
-            <a href="/" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
-              <LayoutDashboard size={14} /> Kanban Board
-            </a>
-            
+
             {['ADMIN', 'PM'].includes(user?.role) && (
               <a href="/admin" className="flex items-center gap-2 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-indigo-600 transition-colors">
                 <Settings size={14} /> Admin Settings

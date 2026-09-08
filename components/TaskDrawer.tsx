@@ -8,16 +8,37 @@ import { createRisk, getRisksByTask, updateRisk, deleteRisk } from "@/actions/ri
 import { createOpportunity, getOpportunitiesByTask, updateOpportunity, deleteOpportunity } from "@/actions/opportunity.actions";
 import { uploadDocument, getDocumentsByTask, deleteDocument } from "@/actions/document.actions";
 import { getActivityLogsByTask } from "@/actions/activity.actions";
+import ConfirmModal from "./ConfirmModal";
 
 type TabType = 'overview' | 'risks' | 'opportunities' | 'documents' | 'expenses' | 'activity';
 
 export default function TaskDrawer({ task, onClose, permissions, subTabPermissions }: { task: any, onClose: () => void, permissions?: any, subTabPermissions?: any }) {
   const [activeTab, setActiveTab] = useState<TabType>('overview');
+  const [confirmConfig, setConfirmConfig] = useState<any>({ isOpen: false });
+
+  const confirmAction = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmConfig({ 
+      isOpen: true, 
+      title, 
+      message, 
+      onConfirm: async () => {
+        await onConfirm();
+        setConfirmConfig({ isOpen: false });
+      }
+    });
+  };
 
   if (!task) return null;
 
   return (
     <>
+      <ConfirmModal 
+        isOpen={confirmConfig.isOpen}
+        title={confirmConfig.title}
+        message={confirmConfig.message}
+        onConfirm={confirmConfig.onConfirm}
+        onCancel={() => setConfirmConfig({ isOpen: false })}
+      />
       <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[85vh] w-[800px] max-w-[95vw] bg-white rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden">
         
@@ -40,9 +61,27 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
             </div>
             <h2 className="text-2xl font-bold text-slate-800">{task.title}</h2>
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
-            <X size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            {permissions?.can_delete && (
+            <button 
+              onClick={() => {
+                confirmAction("Xác nhận thao tác", "Bạn có muốn thực hiện thao tác Xóa Task " + task.title + "?", async () => {
+                  const { deleteTask } = await import("@/actions/task.actions");
+                  await deleteTask(task._id, `/projects/${task.project}`);
+                  setConfirmConfig({ isOpen: false });
+                  onClose();
+                });
+              }}
+              className="p-2 hover:bg-rose-100 rounded-full transition-colors text-slate-400 hover:text-rose-600"
+              title="Xóa Task"
+            >
+              <Trash2 size={18} />
+            </button>
+            )}
+            <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Tabs Navigation */}
@@ -57,7 +96,7 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6 bg-white">
-          {activeTab === 'overview' && <OverviewTab task={task} permissions={permissions} />}
+          {activeTab === 'overview' && <OverviewTab task={task} permissions={permissions} confirmAction={confirmAction} />}
           {activeTab === 'risks' && <RisksTab task={task} subTabPermissions={subTabPermissions} />}
           {activeTab === 'opportunities' && <OpportunitiesTab task={task} subTabPermissions={subTabPermissions} />}
           {activeTab === 'documents' && <DocumentsTab task={task} subTabPermissions={subTabPermissions} />}
@@ -85,14 +124,69 @@ function TabButton({ active, onClick, children, icon }: any) {
   );
 }
 
-function OverviewTab({ task, permissions }: { task: any, permissions?: any }) {
+function OverviewTab({ task, permissions, confirmAction }: { task: any, permissions?: any, confirmAction: any }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  const handleSave = async (e: any) => {
+    e.preventDefault();
+    
+    const data = {
+      description: e.target.description.value,
+      due_date: e.target.due_date.value ? new Date(e.target.due_date.value) : null,
+      budget: Number(e.target.budget.value)
+    };
+
+    confirmAction("Xác nhận thao tác", "Bạn có muốn thực hiện thao tác Lưu Task " + task.title + "?", async () => {
+      setLoading(true);
+      try {
+        const { updateTaskDetails } = await import("@/actions/task.actions");
+        await updateTaskDetails(task._id, data, `/projects/${task.project}`);
+        setIsEditing(false);
+      } catch (error) {
+        alert("Lỗi khi lưu task");
+      }
+      setLoading(false);
+    });
+  };
+
+  if (isEditing) {
+    return (
+      <form onSubmit={handleSave} className="space-y-4">
+        <div>
+          <label className="block text-sm font-semibold text-slate-700 mb-2">Description</label>
+          <textarea name="description" defaultValue={task.description} className="w-full p-3 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500" rows={4}></textarea>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
+            <input type="date" name="due_date" defaultValue={task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : ''} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Budget ($)</label>
+            <input type="number" name="budget" defaultValue={task.budget} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm" />
+          </div>
+        </div>
+        <div className="flex justify-end gap-2 pt-4">
+          <button type="button" onClick={() => setIsEditing(false)} className="px-4 py-2 text-sm text-slate-600 hover:bg-slate-100 rounded-lg">Cancel</button>
+          <button type="submit" disabled={loading} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50">Save Changes</button>
+        </div>
+      </form>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      <div>
-        <h3 className="text-sm font-semibold text-slate-700 mb-2">Description</h3>
-        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600 min-h-[100px]">
-          {task.description || "No description provided."}
-        </div>
+      <div className="flex justify-between items-center">
+        <h3 className="text-sm font-semibold text-slate-700">Description</h3>
+        {permissions?.can_update && (
+          <button onClick={() => setIsEditing(true)} className="flex items-center gap-1 text-xs text-indigo-600 hover:bg-indigo-50 px-2 py-1 rounded">
+            <Edit2 size={12} /> Edit Details
+          </button>
+        )}
+      </div>
+      <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 text-sm text-slate-600 min-h-[100px] whitespace-pre-wrap">
+        {task.description || "No description provided."}
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div>
@@ -224,7 +318,7 @@ function RisksTab({ task, subTabPermissions }: { task: any, subTabPermissions?: 
                     r.status === 'OPEN' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
                   )}>{r.status}</span>
                   
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all -my-1 -mr-1">
+                  <div className="flex gap-1 transition-all -my-1 -mr-1">
                     {(subTabPermissions?.can_update) && (
                       <button onClick={() => setEditingRisk(r)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
                         <Edit2 size={14} />
@@ -361,7 +455,7 @@ function OpportunitiesTab({ task, subTabPermissions }: { task: any, subTabPermis
                     o.status === 'IN_PROGRESS' ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
                   )}>{o.status}</span>
 
-                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all -my-1 -mr-1">
+                  <div className="flex gap-1 transition-all -my-1 -mr-1">
                     {(subTabPermissions?.can_update) && (
                       <button onClick={() => setEditingOpp(o)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
                         <Edit2 size={14} />
@@ -491,7 +585,7 @@ function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermission
               <div className="flex items-center gap-2">
                 <a href={d.file_url} target="_blank" className="text-indigo-600 text-xs font-medium hover:underline px-2">View</a>
                 {(subTabPermissions?.can_delete) && (
-                  <button onClick={() => handleDelete(d._id)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded opacity-0 group-hover:opacity-100 transition-all">
+                  <button onClick={() => handleDelete(d._id)} className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded transition-all">
                     <Trash2 size={14} />
                   </button>
                 )}
@@ -627,7 +721,7 @@ function ExpensesTab({ task, subTabPermissions }: { task: any, subTabPermissions
                 <div className="font-semibold text-slate-800">
                   ${exp.amount.toLocaleString('en-US')}
                 </div>
-                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                <div className="flex gap-1 transition-all">
                   {(subTabPermissions?.can_update) && (
                     <button onClick={() => setEditingExp(exp)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
                       <Edit2 size={14} />

@@ -2,7 +2,7 @@
 
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { AlertCircle, ArrowUpRight, Paperclip, ChevronsUp, ChevronUp, Minus, ChevronDown } from "lucide-react";
+import { AlertCircle, ArrowUpRight, Paperclip, ChevronsUp, ChevronUp, Minus, ChevronDown, AlertTriangle, FileText, DollarSign } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function TaskCard({ task, onClick, permissions }: { task: any, onClick?: () => void, permissions?: any }) {
@@ -61,22 +61,31 @@ export default function TaskCard({ task, onClick, permissions }: { task: any, on
         )}
       </div>
       
-      {/* Badges row */}
-      {(rollup.totalOppValue > 0 || rollup.documentCount > 0) && (
+      {/* Subtasks Overview Row */}
+      {(rollup.riskCount > 0 || rollup.opportunityCount > 0 || rollup.documentCount > 0 || rollup.expenseCount > 0) && (
         <div className="flex flex-wrap gap-2 mb-3 mt-3">
-          {/* Opportunity Badge */}
-          {rollup.totalOppValue > 0 && (
-            <div className="flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded border border-indigo-100">
-              <ArrowUpRight size={12} />
-              <span className="font-semibold">${rollup.totalOppValue.toLocaleString('en-US')}</span>
+          {rollup.riskCount > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-rose-700 bg-rose-50/80 px-1.5 py-0.5 rounded border border-rose-100">
+              <AlertTriangle size={10} />
+              <span className="font-medium">Risks: {rollup.riskCount}</span>
             </div>
           )}
-          
-          {/* Document Counter */}
+          {rollup.opportunityCount > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-indigo-700 bg-indigo-50/80 px-1.5 py-0.5 rounded border border-indigo-100">
+              <ArrowUpRight size={10} />
+              <span className="font-medium">Opps: {rollup.opportunityCount}</span>
+            </div>
+          )}
           {rollup.documentCount > 0 && (
             <div className="flex items-center gap-1 text-[11px] text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
-              <Paperclip size={10} />
-              <span className="font-semibold">{rollup.documentCount}</span>
+              <FileText size={10} />
+              <span className="font-medium">Docs: {rollup.documentCount}</span>
+            </div>
+          )}
+          {rollup.expenseCount > 0 && (
+            <div className="flex items-center gap-1 text-[11px] text-emerald-700 bg-emerald-50/80 px-1.5 py-0.5 rounded border border-emerald-100">
+              <DollarSign size={10} />
+              <span className="font-medium">Expenses: {rollup.expenseCount}</span>
             </div>
           )}
         </div>

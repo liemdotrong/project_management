@@ -10,7 +10,8 @@ const ProjectSchema = new Schema({
   members: [{
     user: { type: Schema.Types.ObjectId, ref: 'User' },
     role: { type: String, enum: ['ADMIN', 'PM', 'MEMBER', 'VIEWER'], default: 'MEMBER' }
-  }]
+  }],
+  isDeleted: { type: Number, enum: [0, 1], default: 0 }
 }, { timestamps: true });
 
 export default models.Project || mongoose.model('Project', ProjectSchema);

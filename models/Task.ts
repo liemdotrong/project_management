@@ -13,7 +13,8 @@ const TaskSchema = new Schema({
   due_date: { type: Date },
   position: { type: Number, default: 0 },
   assignees: [{ type: Schema.Types.ObjectId, ref: 'User' }],
-  budget: { type: Number, default: 0, min: 0 }
+  budget: { type: Number, default: 0, min: 0 },
+  isDeleted: { type: Number, enum: [0, 1], default: 0 }
 }, { timestamps: true });
 
 export default models.Task || mongoose.model('Task', TaskSchema);
