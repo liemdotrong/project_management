@@ -8,6 +8,7 @@ import { createRisk, getRisksByTask, updateRisk, deleteRisk } from "@/actions/ri
 import { createOpportunity, getOpportunitiesByTask, updateOpportunity, deleteOpportunity } from "@/actions/opportunity.actions";
 import { uploadDocument, getDocumentsByTask, deleteDocument } from "@/actions/document.actions";
 import { getActivityLogsByTask } from "@/actions/activity.actions";
+import { getUsers } from "@/actions/user.actions";
 import ConfirmModal from "./ConfirmModal";
 
 type TabType = 'overview' | 'risks' | 'opportunities' | 'documents' | 'expenses' | 'activity';
@@ -17,10 +18,10 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
   const [confirmConfig, setConfirmConfig] = useState<any>({ isOpen: false });
 
   const confirmAction = (title: string, message: string, onConfirm: () => void) => {
-    setConfirmConfig({ 
-      isOpen: true, 
-      title, 
-      message, 
+    setConfirmConfig({
+      isOpen: true,
+      title,
+      message,
       onConfirm: async () => {
         await onConfirm();
         setConfirmConfig({ isOpen: false });
@@ -32,7 +33,7 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
 
   return (
     <>
-      <ConfirmModal 
+      <ConfirmModal
         isOpen={confirmConfig.isOpen}
         title={confirmConfig.title}
         message={confirmConfig.message}
@@ -41,7 +42,7 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
       />
       <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 transition-opacity" onClick={onClose} />
       <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[85vh] w-[800px] max-w-[95vw] bg-white rounded-2xl shadow-2xl z-50 flex flex-col overflow-hidden">
-        
+
         {/* Header */}
         <div className="p-6 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
           <div>
@@ -52,9 +53,9 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
               <span className={cn(
                 "text-xs font-bold px-2 py-0.5 rounded-sm uppercase tracking-wider",
                 task.priority === 'URGENT' ? "bg-rose-100 text-rose-700" :
-                task.priority === 'HIGH' ? "bg-amber-100 text-amber-700" :
-                task.priority === 'MED' ? "bg-blue-100 text-blue-700" :
-                "bg-slate-100 text-slate-600"
+                  task.priority === 'HIGH' ? "bg-amber-100 text-amber-700" :
+                    task.priority === 'MED' ? "bg-blue-100 text-blue-700" :
+                      "bg-slate-100 text-slate-600"
               )}>
                 {task.priority || 'MED'}
               </span>
@@ -63,20 +64,20 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
           </div>
           <div className="flex items-center gap-2">
             {permissions?.can_delete && (
-            <button 
-              onClick={() => {
-                confirmAction("Xác nhận thao tác", "Bạn có muốn thực hiện thao tác Xóa Task " + task.title + "?", async () => {
-                  const { deleteTask } = await import("@/actions/task.actions");
-                  await deleteTask(task._id, `/projects/${task.project}`);
-                  setConfirmConfig({ isOpen: false });
-                  onClose();
-                });
-              }}
-              className="p-2 hover:bg-rose-100 rounded-full transition-colors text-slate-400 hover:text-rose-600"
-              title="Xóa Task"
-            >
-              <Trash2 size={18} />
-            </button>
+              <button
+                onClick={() => {
+                  confirmAction("Xác nhận thao tác", "Bạn có muốn thực hiện thao tác Xóa Task " + task.title + "?", async () => {
+                    const { deleteTask } = await import("@/actions/task.actions");
+                    await deleteTask(task._id, `/projects/${task.project}`);
+                    setConfirmConfig({ isOpen: false });
+                    onClose();
+                  });
+                }}
+                className="p-2 hover:bg-rose-100 rounded-full transition-colors text-slate-400 hover:text-rose-600"
+                title="Xóa Task"
+              >
+                <Trash2 size={18} />
+              </button>
             )}
             <button onClick={onClose} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400 hover:text-slate-600">
               <X size={20} />
@@ -111,7 +112,7 @@ export default function TaskDrawer({ task, onClose, permissions, subTabPermissio
 // Subcomponents
 function TabButton({ active, onClick, children, icon }: any) {
   return (
-    <button 
+    <button
       onClick={onClick}
       className={cn(
         "flex items-center gap-2 pb-3 pt-2 text-sm font-medium border-b-2 transition-colors whitespace-nowrap",
@@ -127,14 +128,35 @@ function TabButton({ active, onClick, children, icon }: any) {
 function OverviewTab({ task, permissions, confirmAction }: { task: any, permissions?: any, confirmAction: any }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+  const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
+
+  useEffect(() => {
+    getUsers().then(setAllUsers);
+  }, []);
+
+  useEffect(() => {
+    if (isEditing) {
+      setSelectedAssignees(task.assignees?.map((a: any) => a._id || a) || []);
+    }
+  }, [isEditing, task]);
+
+  const toggleAssignee = (userId: string) => {
+    if (selectedAssignees.includes(userId)) {
+      setSelectedAssignees(prev => prev.filter(id => id !== userId));
+    } else {
+      setSelectedAssignees(prev => [...prev, userId]);
+    }
+  };
 
   const handleSave = async (e: any) => {
     e.preventDefault();
-    
+
     const data = {
       description: e.target.description.value,
       due_date: e.target.due_date.value ? new Date(e.target.due_date.value) : null,
-      budget: Number(e.target.budget.value)
+      budget: Number(e.target.budget.value),
+      assignees: selectedAssignees
     };
 
     confirmAction("Xác nhận thao tác", "Bạn có muốn thực hiện thao tác Lưu Task " + task.title + "?", async () => {
@@ -159,12 +181,37 @@ function OverviewTab({ task, permissions, confirmAction }: { task: any, permissi
         </div>
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
-            <input type="date" name="due_date" defaultValue={task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : ''} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm" />
+            <label className="block text-sm font-semibold text-slate-700 mb-2">Assignees</label>
+            <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl p-2 bg-white space-y-1">
+              {allUsers.length === 0 ? (
+                <div className="text-xs text-slate-400 p-2 text-center">Loading users...</div>
+              ) : (
+                allUsers.map(user => (
+                  <label key={user._id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-lg cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedAssignees.includes(user._id)}
+                      onChange={() => toggleAssignee(user._id)}
+                      className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="w-6 h-6 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700">
+                      {user.name.charAt(0)}
+                    </div>
+                    <span className="text-sm text-slate-700">{user.name}</span>
+                  </label>
+                ))
+              )}
+            </div>
           </div>
-          <div>
-            <label className="block text-sm font-semibold text-slate-700 mb-2">Budget ($)</label>
-            <input type="number" name="budget" defaultValue={task.budget} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm" />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Due Date</label>
+              <input type="date" name="due_date" defaultValue={task.due_date ? new Date(task.due_date).toISOString().split('T')[0] : ''} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm" />
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-slate-700 mb-2">Budget ($)</label>
+              <input type="number" name="budget" defaultValue={task.budget} className="w-full p-2 bg-white border border-slate-200 rounded-lg text-sm" />
+            </div>
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-4">
@@ -191,10 +238,13 @@ function OverviewTab({ task, permissions, confirmAction }: { task: any, permissi
       <div className="grid grid-cols-2 gap-4">
         <div>
           <h3 className="text-sm font-semibold text-slate-700 mb-2">Assignees</h3>
-          <div className="flex -space-x-2">
+          <div className="flex flex-wrap gap-2">
             {task.assignees?.map((a: any, i: number) => (
-              <div key={i} className="w-8 h-8 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-xs font-bold text-indigo-700">
-                {a.name ? a.name.charAt(0) : 'U'}
+              <div key={i} className="flex items-center gap-2 bg-slate-50 px-2 py-1 rounded-full border border-slate-200" title={a.email}>
+                <div className="w-6 h-6 rounded-full bg-indigo-100 border-2 border-white flex items-center justify-center text-xs font-bold text-indigo-700 shrink-0">
+                  {a.name ? a.name.charAt(0) : 'U'}
+                </div>
+                <span className="text-sm text-slate-700 truncate max-w-[100px]">{a.name}</span>
               </div>
             ))}
             {(!task.assignees || task.assignees.length === 0) && <span className="text-sm text-slate-400">Unassigned</span>}
@@ -260,9 +310,9 @@ function RisksTab({ task, subTabPermissions }: { task: any, subTabPermissions?: 
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Risk Matrix & Register</h3>
         {(subTabPermissions?.can_create && !editingRisk) && (
-        <button onClick={() => setEditingRisk({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-          + Add Risk
-        </button>
+          <button onClick={() => setEditingRisk({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+            + Add Risk
+          </button>
         )}
       </div>
 
@@ -270,7 +320,7 @@ function RisksTab({ task, subTabPermissions }: { task: any, subTabPermissions?: 
         <form onSubmit={handleSubmit} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-sm font-semibold text-slate-700">{editingRisk._id ? "Edit Risk" : "New Risk"}</h4>
-            <button type="button" onClick={() => setEditingRisk(null)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+            <button type="button" onClick={() => setEditingRisk(null)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
           </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className={editingRisk._id ? "col-span-1" : "col-span-2"}>
@@ -278,14 +328,14 @@ function RisksTab({ task, subTabPermissions }: { task: any, subTabPermissions?: 
               <input name="title" defaultValue={editingRisk.title} required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. API limit reached" />
             </div>
             {editingRisk._id && (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
-              <select name="status" defaultValue={editingRisk.status || 'OPEN'} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-                <option value="OPEN">OPEN</option>
-                <option value="MITIGATED">MITIGATED</option>
-                <option value="CLOSED">CLOSED</option>
-              </select>
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+                <select name="status" defaultValue={editingRisk.status || 'OPEN'} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                  <option value="OPEN">OPEN</option>
+                  <option value="MITIGATED">MITIGATED</option>
+                  <option value="CLOSED">CLOSED</option>
+                </select>
+              </div>
             )}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Severity (1-5)</label>
@@ -317,7 +367,7 @@ function RisksTab({ task, subTabPermissions }: { task: any, subTabPermissions?: 
                     "px-2 py-0.5 text-[10px] font-bold rounded-full",
                     r.status === 'OPEN' ? "bg-amber-100 text-amber-700" : "bg-emerald-100 text-emerald-700"
                   )}>{r.status}</span>
-                  
+
                   <div className="flex gap-1 transition-all -my-1 -mr-1">
                     {(subTabPermissions?.can_update) && (
                       <button onClick={() => setEditingRisk(r)} className="p-1 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded">
@@ -400,9 +450,9 @@ function OpportunitiesTab({ task, subTabPermissions }: { task: any, subTabPermis
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Value Optimization</h3>
         {(subTabPermissions?.can_create && !editingOpp) && (
-        <button onClick={() => setEditingOpp({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-          + Add Opportunity
-        </button>
+          <button onClick={() => setEditingOpp({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+            + Add Opportunity
+          </button>
         )}
       </div>
 
@@ -410,7 +460,7 @@ function OpportunitiesTab({ task, subTabPermissions }: { task: any, subTabPermis
         <form onSubmit={handleSubmit} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <div className="flex justify-between items-center mb-3">
             <h4 className="text-sm font-semibold text-slate-700">{editingOpp._id ? "Edit Opportunity" : "New Opportunity"}</h4>
-            <button type="button" onClick={() => setEditingOpp(null)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
+            <button type="button" onClick={() => setEditingOpp(null)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
           </div>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div className={editingOpp._id ? "col-span-1" : "col-span-2"}>
@@ -418,14 +468,14 @@ function OpportunitiesTab({ task, subTabPermissions }: { task: any, subTabPermis
               <input name="title" defaultValue={editingOpp.title} required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Upsell Pro plan" />
             </div>
             {editingOpp._id && (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
-              <select name="status" defaultValue={editingOpp.status || 'IDENTIFIED'} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
-                <option value="IDENTIFIED">IDENTIFIED</option>
-                <option value="IN_PROGRESS">IN_PROGRESS</option>
-                <option value="REALIZED">REALIZED</option>
-              </select>
-            </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Status</label>
+                <select name="status" defaultValue={editingOpp.status || 'IDENTIFIED'} className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white">
+                  <option value="IDENTIFIED">IDENTIFIED</option>
+                  <option value="IN_PROGRESS">IN_PROGRESS</option>
+                  <option value="REALIZED">REALIZED</option>
+                </select>
+              </div>
             )}
             <div className="col-span-2">
               <label className="block text-xs font-medium text-slate-600 mb-1">Impact Value ($)</label>
@@ -452,7 +502,7 @@ function OpportunitiesTab({ task, subTabPermissions }: { task: any, subTabPermis
                   <span className={cn(
                     "px-2 py-0.5 text-[10px] font-bold rounded-full",
                     o.status === 'IDENTIFIED' ? "bg-slate-100 text-slate-700" :
-                    o.status === 'IN_PROGRESS' ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
+                      o.status === 'IN_PROGRESS' ? "bg-indigo-100 text-indigo-700" : "bg-emerald-100 text-emerald-700"
                   )}>{o.status}</span>
 
                   <div className="flex gap-1 transition-all -my-1 -mr-1">
@@ -502,7 +552,7 @@ function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermission
     e.preventDefault();
     if (!file) return;
     setLoading(true);
-    
+
     const reader = new FileReader();
     reader.onload = async () => {
       const base64Data = reader.result as string;
@@ -512,7 +562,7 @@ function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermission
         type: file.type || "application/octet-stream",
         data: base64Data
       };
-      
+
       try {
         await uploadDocument(task._id, fileData, "65a1234567890abcdef12345", `/projects/${task.project}`);
         e.target.reset();
@@ -542,9 +592,9 @@ function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermission
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Attachments</h3>
         {(subTabPermissions?.can_create) && (
-        <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-          {showForm ? "Cancel" : "Upload File"}
-        </button>
+          <button onClick={() => setShowForm(!showForm)} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+            {showForm ? "Cancel" : "Upload File"}
+          </button>
         )}
       </div>
 
@@ -552,11 +602,11 @@ function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermission
         <form onSubmit={handleUpload} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <div className="mb-4">
             <label className="block text-xs font-medium text-slate-600 mb-1">Select File (Max 10MB)</label>
-            <input 
-              type="file" 
-              required 
+            <input
+              type="file"
+              required
               onChange={(e) => setFile(e.target.files ? e.target.files[0] : null)}
-              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" 
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
             />
           </div>
           <button disabled={loading || !file} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
@@ -576,8 +626,8 @@ function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermission
                 <div>
                   <h4 className="text-sm font-medium text-slate-700">{d.file_name}</h4>
                   <p className="text-xs text-slate-400">
-                    {d.file_size < 1024 * 1024 
-                      ? `${(d.file_size / 1024).toFixed(2)} KB` 
+                    {d.file_size < 1024 * 1024
+                      ? `${(d.file_size / 1024).toFixed(2)} KB`
                       : `${(d.file_size / (1024 * 1024)).toFixed(2)} MB`} • {new Date(d.createdAt).toLocaleDateString()}
                   </p>
                 </div>
@@ -595,7 +645,7 @@ function DocumentsTab({ task, subTabPermissions }: { task: any, subTabPermission
         </div>
       ) : (
         <div className="p-8 text-center text-sm text-slate-500 bg-slate-50 rounded-xl border border-slate-100 border-dashed">
-          No attachments yet. Max 25MB. PDF, DOCX, XLSX, PNG supported.
+          No attachments yet. Max 10MB. PDF, DOCX, XLSX, PNG supported.
         </div>
       )}
     </div>
@@ -651,12 +701,12 @@ function ExpensesTab({ task, subTabPermissions }: { task: any, subTabPermissions
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-sm font-semibold text-slate-700">Expense Register</h3>
         {(subTabPermissions?.can_create && !editingExp) && (
-        <button onClick={() => setEditingExp({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
-          + Add Expense
-        </button>
+          <button onClick={() => setEditingExp({})} className="px-3 py-1.5 bg-indigo-50 text-indigo-600 text-sm font-medium rounded-lg hover:bg-indigo-100 transition-colors">
+            + Add Expense
+          </button>
         )}
       </div>
-      
+
       {/* Financial Warning Banner */}
       {budget > 0 && (
         <div className={cn(
@@ -676,7 +726,7 @@ function ExpensesTab({ task, subTabPermissions }: { task: any, subTabPermissions
             </div>
           </div>
           <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden mb-1">
-            <div 
+            <div
               className={cn("h-2 rounded-full transition-all duration-500", isOverBudget ? "bg-rose-500" : "bg-indigo-500")}
               style={{ width: `${percentage}%` }}
             ></div>
@@ -688,25 +738,25 @@ function ExpensesTab({ task, subTabPermissions }: { task: any, subTabPermissions
       )}
 
       {editingExp && (
-      <form onSubmit={handleSubmit} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-        <div className="flex justify-between items-center mb-3">
-          <h4 className="text-sm font-semibold text-slate-700">{editingExp._id ? "Edit Expense" : "New Expense"}</h4>
-          <button type="button" onClick={() => setEditingExp(null)} className="text-slate-400 hover:text-slate-600"><X size={16}/></button>
-        </div>
-        <div className="grid grid-cols-2 gap-4 mb-4">
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
-            <input name="category" defaultValue={editingExp.category} required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Software License" />
+        <form onSubmit={handleSubmit} className="mb-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+          <div className="flex justify-between items-center mb-3">
+            <h4 className="text-sm font-semibold text-slate-700">{editingExp._id ? "Edit Expense" : "New Expense"}</h4>
+            <button type="button" onClick={() => setEditingExp(null)} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
           </div>
-          <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Amount ($)</label>
-            <input name="amount" defaultValue={editingExp.amount} required type="number" step="0.01" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="0.00" />
+          <div className="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Category</label>
+              <input name="category" defaultValue={editingExp.category} required type="text" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="e.g. Software License" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Amount ($)</label>
+              <input name="amount" defaultValue={editingExp.amount} required type="number" step="0.01" className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm" placeholder="0.00" />
+            </div>
           </div>
-        </div>
-        <button disabled={loading} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
-          {loading ? "Saving..." : "Save Expense"}
-        </button>
-      </form>
+          <button disabled={loading} type="submit" className="w-full py-2 bg-indigo-600 text-white rounded-lg text-sm font-medium hover:bg-indigo-700 transition-colors disabled:opacity-50">
+            {loading ? "Saving..." : "Save Expense"}
+          </button>
+        </form>
       )}
 
       {expenses.length > 0 ? (

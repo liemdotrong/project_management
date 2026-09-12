@@ -7,6 +7,7 @@ import Opportunity from "@/models/Opportunity";
 import Document from "@/models/Document";
 import Expense from "@/models/Expense";
 import ActivityLog from "@/models/ActivityLog";
+import User from "@/models/User"; // Bổ sung import để mongoose biết model khi populate
 import { logActivityWithSession } from "@/actions/activity.actions";
 import { revalidatePath } from "next/cache";
 
@@ -47,8 +48,12 @@ export async function createTask(
 export async function getTasksByProject(projectId: string) {
   try {
     await connectDB();
+    require("@/models/User"); // Prevent tree-shaking of User model needed for populate
     // Fetch raw non-deleted tasks
-    const tasks = await Task.find({ project: projectId, isDeleted: { $ne: 1 } }).sort({ position: 1, createdAt: -1 }).lean();
+    const tasks = await Task.find({ project: projectId, isDeleted: { $ne: 1 } })
+      .populate('assignees', 'name email avatar_url')
+      .sort({ position: 1, createdAt: -1 })
+      .lean();
     
     // Manual Rollup (simpler than complex aggregation for now)
     const taskIds = tasks.map(t => t._id);

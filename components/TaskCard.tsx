@@ -117,7 +117,7 @@ export default function TaskCard({ task, onClick, permissions }: { task: any, on
         {task.assignees && task.assignees.length > 0 && (
           <div className="flex -space-x-1.5">
             {task.assignees.slice(0, 3).map((assignee: any, idx: number) => (
-              <div key={idx} className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white shadow-sm ring-1 ring-black/5">
+              <div key={idx} title={assignee.name || assignee.email} className="w-6 h-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 border-2 border-white flex items-center justify-center text-[9px] font-bold text-white shadow-sm ring-1 ring-black/5">
                 {assignee.name ? assignee.name.charAt(0) : 'U'}
               </div>
             ))}

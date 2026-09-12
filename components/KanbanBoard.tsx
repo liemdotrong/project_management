@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DndContext, DragEndEvent, DragOverlay, DragStartEvent, useSensor, useSensors, PointerSensor } from "@dnd-kit/core";
 import BoardColumn from "./BoardColumn";
 import TaskCard from "./TaskCard";
@@ -19,7 +19,13 @@ export default function KanbanBoard({ initialTasks, projectId, permissions, subT
     const [tasks, setTasks] = useState(initialTasks);
     const [activeTask, setActiveTask] = useState<any | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedTask, setSelectedTask] = useState<any | null>(null);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+
+    useEffect(() => {
+        setTasks(initialTasks);
+    }, [initialTasks]);
+
+    const selectedTask = selectedTaskId ? tasks.find(t => t._id === selectedTaskId) : null;
 
     // Cấu hình Sensor để phân biệt click (mở drawer) và drag (kéo thả)
     const sensors = useSensors(
@@ -118,7 +124,7 @@ export default function KanbanBoard({ initialTasks, projectId, permissions, subT
                                     <TaskCard 
                                         key={task._id} 
                                         task={task} 
-                                        onClick={() => setSelectedTask(task)} 
+                                        onClick={() => setSelectedTaskId(task._id)} 
                                         permissions={permissions}
                                     />
                                 ))}
@@ -133,7 +139,7 @@ export default function KanbanBoard({ initialTasks, projectId, permissions, subT
 
             <TaskDrawer 
                 task={selectedTask} 
-                onClose={() => setSelectedTask(null)} 
+                onClose={() => setSelectedTaskId(null)} 
                 permissions={permissions}
                 subTabPermissions={subTabPermissions}
             />
